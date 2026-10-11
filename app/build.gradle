@@ -1,0 +1,43 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'ir.sinicable.rubikaqueue'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId 'ir.sinicable.rubikaqueue'
+        minSdk 26
+        targetSdk 34
+        versionCode 11
+        versionName '1.1-personal-queue-test'
+    }
+
+    signingConfigs {
+        testKey {
+            storeFile rootProject.file('signing/test-signing.p12')
+            storeType 'pkcs12'
+            storePassword System.getenv('RUBIKA_TEST_KEYSTORE_PASSWORD') ?: 'android'
+            keyAlias System.getenv('RUBIKA_TEST_KEY_ALIAS') ?: 'test'
+            keyPassword System.getenv('RUBIKA_TEST_KEY_PASSWORD') ?: 'android'
+        }
+    }
+
+    buildTypes {
+        debug {
+            if (rootProject.file('signing/test-signing.p12').exists()) {
+                signingConfig signingConfigs.testKey
+            }
+            minifyEnabled false
+        }
+        release {
+            minifyEnabled false
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+}
