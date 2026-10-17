@@ -19,11 +19,17 @@ Get your **own bot token** from BotFather. The bot token is kept only in the tra
 The **public site** does not publish the backend or source of the private Rubika Android app. No proprietary source, bundled website JavaScript, or undocumented browser endpoints are copied into the APK. The public website's URLs and Bot API documentation are used as integration references.
 
 ## Build and signing
-The complete source bundle is archived as `source/Rubika-Queu-v0.9-official-web-integration-source.zip` and extracted by `.github/workflows/build-apk.yml`. The main branch's manifest and Gradle configuration govern the resulting build. GitHub Actions runs Android Gradle, `apksigner verify`, `zipalign`, and uploads a built APK as an Actions artifact.
+The complete source bundle is archived as `source/Rubika-Queu-v1.1-personal-queue-source.zip` and extracted by `.github/workflows/build-apk.yml`. The main branch's manifest and Gradle configuration govern the resulting build. GitHub Actions runs Android unit tests, Android Gradle, `apksigner verify`, `zipalign`, and uploads a built APK as an Actions artifact.
 
 Without a custom signing secret, GitHub Actions uses a fresh runner debug keystore: the resulting artifact has a **different signing identity** and **cannot upgrade** an already installed Rubika-Queu APK signed with the permanent test certificate. For a safely updatable APK, configure GitHub Actions secret `RUBIKA_TEST_KEYSTORE_BASE64` with the original PKCS#12 keystore (alias `test`) and retain its passwords via `RUBIKA_TEST_KEYSTORE_PASSWORD` and `RUBIKA_TEST_KEY_PASSWORD`. Never commit a signing keystore or token. The workflow checks the expected certificate SHA-256 digest when the original key is configured.
 
-Application ID: `ir.sinicable.rubikaqueue`, minimum SDK 26, target SDK 34, versionCode 9.
+Application ID: `ir.sinicable.rubikaqueue`, minimum SDK 26, target SDK 34, versionCode 11, versionName `1.1-personal-queue-test`.
+
+## HooshikaDev results inbox
+
+The app accepts the review-only `application/vnd.hooshika.rubika-results+json` share from HooshikaDev. It validates the schema and public Rubika links, removes duplicate phone results, and shows the selected items for review. A business phone enters the saved queue only after the user checks that contact's separate consent box and writes the message. Receiving results never starts sending. Public group/channel links can be opened for manual review, but the handoff does not contain the account's internal group ID, so those links cannot be added to the account send queue here. Search visibility is not consent.
+
+An unfinished or scheduled saved queue is preserved: the inbox will not replace it. Finish, review, or export that queue first. A saved Hooshika handoff queue must still be reviewed and started from the main screen.
 
 Official references:
 - https://rubika.ir/botapi
