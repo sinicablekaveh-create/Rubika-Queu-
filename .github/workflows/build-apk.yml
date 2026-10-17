@@ -109,3 +109,87 @@ jobs:
           name: Rubika-Queu-v1.1-apk
           path: Rubika-Queu-v1.1-*.apk
           if-no-files-found: error
+
+  install-upgrade-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Extract audited application source bundle
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/rubika-src"
+          unzip -o -q source/Rubika-Queu-v1.1-personal-queue-source.zip -d "$RUNNER_TEMP/rubika-src"
+          cp -a "$RUNNER_TEMP/rubika-src/app/src/main/java" app/src/main/
+          cp -a "$RUNNER_TEMP/rubika-src/app/src/main/assets" app/src/main/
+      - name: Verify queue source
+        run: |
+          test -f app/src/main/java/ir/sinicable/rubikaqueue/MainActivity.java
+          test -f app/src/main/java/ir/sinicable/rubikaqueue/QueueService.java
+          test -f app/src/main/java/ir/sinicable/rubikaqueue/HooshikaHandoff.java
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Install Android platform
+        run: |
+          set -euo pipefail
+          SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -name sdkmanager -type f | sort -V | tail -1)"
+          test -x "$SDKMANAGER"
+          printf 'y\n' | "$SDKMANAGER" 'platforms;android-35' 'build-tools;35.0.0'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Build baseline APK
+        run: |
+          set -euo pipefail
+          gradle --no-daemon :app:assembleDebug -PrubikaQueueVersionCode=10 -PrubikaQueueVersionName=1.0.0-smoke
+          cp app/build/outputs/apk/debug/app-debug.apk "$GITHUB_WORKSPACE/rubika-queue-v10.apk"
+      - name: Build upgrade APK
+        run: |
+          set -euo pipefail
+          gradle --no-daemon :app:assembleDebug -PrubikaQueueVersionCode=11 -PrubikaQueueVersionName=1.1-personal-queue-test
+      - name: Install, upgrade, and verify app data
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 30
+          arch: x86_64
+          target: google_apis
+          emulator-boot-timeout: 1200
+          disable-animations: true
+          script: |
+            set -eu
+            app_package=ir.sinicable.rubikaqueue
+            main_activity=ir.sinicable.rubikaqueue.MainActivity
+            baseline_apk="$GITHUB_WORKSPACE/rubika-queue-v10.apk"
+            upgrade_apk="$GITHUB_WORKSPACE/app/build/outputs/apk/debug/app-debug.apk"
+            test -s "$baseline_apk"
+            test -s "$upgrade_apk"
+            adb install "$baseline_apk"
+            baseline_version="$(adb shell dumpsys package "$app_package" | sed -n 's/.*versionCode=\([0-9][0-9]*\).*/\1/p' | head -n 1 | tr -d '\r')"
+            test "$baseline_version" = "10"
+            adb logcat -c
+            adb shell am start -n "$app_package/$main_activity"
+            for attempt in $(seq 1 30); do
+              if adb shell pidof "$app_package" | tr -d '\r' | grep -Eq '[0-9]+'; then break; fi
+              sleep 2
+            done
+            adb shell pidof "$app_package" | tr -d '\r' | grep -Eq '[0-9]+'
+            adb shell run-as "$app_package" sh -c 'echo upgrade-preserved > files/install-upgrade.marker'
+            adb install -r "$upgrade_apk"
+            upgraded_version="$(adb shell dumpsys package "$app_package" | sed -n 's/.*versionCode=\([0-9][0-9]*\).*/\1/p' | head -n 1 | tr -d '\r')"
+            test "$upgraded_version" = "11"
+            marker="$(adb shell run-as "$app_package" cat files/install-upgrade.marker | tr -d '\r')"
+            test "$marker" = "upgrade-preserved"
+            adb shell am start -n "$app_package/$main_activity"
+            for attempt in $(seq 1 30); do
+              if adb shell pidof "$app_package" | tr -d '\r' | grep -Eq '[0-9]+'; then break; fi
+              sleep 2
+            done
+            adb shell pidof "$app_package" | tr -d '\r' | grep -Eq '[0-9]+'
+            if adb logcat -d -s AndroidRuntime:E | grep -F 'FATAL EXCEPTION'; then
+              echo 'Android activity crashed during install or upgrade smoke test.'
+              exit 1
+            fi

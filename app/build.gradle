@@ -2,6 +2,16 @@ plugins {
     id 'com.android.application'
 }
 
+def requestedQueueVersionCode = (findProperty('rubikaQueueVersionCode') ?: '11').toString()
+def requestedQueueVersionName = (findProperty('rubikaQueueVersionName') ?: '1.1-personal-queue-test').toString()
+if (!(requestedQueueVersionCode ==~ /[1-9][0-9]*/)) {
+    throw new GradleException('rubikaQueueVersionCode must be a positive integer')
+}
+def parsedQueueVersionCode = requestedQueueVersionCode.toLong()
+if (parsedQueueVersionCode > 2100000000L) {
+    throw new GradleException('rubikaQueueVersionCode exceeds the permitted release range')
+}
+
 android {
     namespace 'ir.sinicable.rubikaqueue'
     compileSdk 35
@@ -10,8 +20,8 @@ android {
         applicationId 'ir.sinicable.rubikaqueue'
         minSdk 26
         targetSdk 34
-        versionCode 11
-        versionName '1.1-personal-queue-test'
+        versionCode parsedQueueVersionCode.intValue()
+        versionName requestedQueueVersionName
     }
 
     signingConfigs {
