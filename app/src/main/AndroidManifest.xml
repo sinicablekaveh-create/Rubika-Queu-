@@ -15,6 +15,13 @@
       android:allowBackup="false"
       android:usesCleartextTraffic="false">
     <activity android:name=".OfficialBotActivity" android:exported="false"/>
+    <activity android:name=".HooshikaInboxActivity" android:exported="true">
+      <intent-filter>
+        <action android:name="android.intent.action.SEND"/>
+        <category android:name="android.intent.category.DEFAULT"/>
+        <data android:mimeType="application/vnd.hooshika.rubika-results+json"/>
+      </intent-filter>
+    </activity>
     <activity android:name=".MainActivity" android:exported="true" android:windowSoftInputMode="adjustResize" android:configChanges="orientation|screenSize|keyboardHidden">
       <intent-filter>
         <action android:name="android.intent.action.MAIN"/>
